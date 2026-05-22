@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: drps_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: drps_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mlflow:
+    image: python:3.10-slim
+    container_name: mlflow_server
+    ports:
+      - "5000:5000"
+    command: >
+      bash -c "pip install --default-timeout=1000 mlflow psycopg2-binary && 
+      mlflow server --backend-store-uri postgresql://admin:adminpassword@db:5432/drps_db --default-artifact-root /mlflow_artifacts --host 0.0.0.0 --port 5000"
+    depends_on:
+      - db
+    volumes:
+      - ./mlflow_artifacts:/mlflow_artifacts
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: drps_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin:adminpassword@db:5432/drps_db
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - db
+      - mlflow
+    volumes:
+      - ./backend:/app
+      - ./ml_pipeline:/app/ml_pipeline
+      - ./dataset:/app/dataset
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: drps_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
