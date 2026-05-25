@@ -2,7 +2,7 @@
 
 Hệ thống AI hỗ trợ y tế dự đoán rủi ro tái nhập viện của bệnh nhân tiểu đường (DRPS). Dự án kết hợp Học máy (Machine Learning) tiên tiến, XAI (AI Giải thích được bằng SHAP) và kiến trúc MLOps toàn diện để hỗ trợ các bác sĩ đưa ra quyết định lâm sàng.
 
-## 🚀 Công nghệ sử dụng (Tech Stack)
+##  Công nghệ sử dụng (Tech Stack)
 
 *   **Machine Learning / AI:** XGBoost, Random Forest, Scikit-Learn.
 *   **Explainable AI (XAI):** SHAP (TreeExplainer).
@@ -16,7 +16,7 @@ Hệ thống AI hỗ trợ y tế dự đoán rủi ro tái nhập viện của 
 *   **Testing:** Pytest (Unit/Integration Test), Locust (Load Test).
 *   **Deployment & CI/CD:** Docker, Docker Compose, GitHub Actions.
 
-## 📂 Cấu trúc thư mục (Project Structure)
+##  Cấu trúc thư mục (Project Structure)
 
 ```text
 Final_CNM/
@@ -40,7 +40,7 @@ Final_CNM/
 └── docker-compose.yml     # File cấu hình chạy toàn bộ cụm dịch vụ
 ```
 
-## 🛠️ Hướng dẫn cài đặt & Chạy dự án (Local Development)
+##  Hướng dẫn cài đặt & Chạy dự án (Local Development)
 
 Dự án được thiết kế để chạy mượt mà thông qua **Docker Compose** với toàn bộ hệ sinh thái (App, Postgres, Redis, MLflow, Prometheus, Grafana).
 
@@ -58,13 +58,13 @@ Dự án được thiết kế để chạy mượt mà thông qua **Docker Comp
 ### 3. Truy cập các dịch vụ
 Sau khi các container khởi động thành công, bạn có thể truy cập qua trình duyệt:
 
-*   **🌐 Giao diện Web (DRPS Dashboard):** `http://localhost:5173`
+*   ** Giao diện Web (DRPS Dashboard):** `http://localhost:5173`
     *   *Tài khoản Admin:* `admin` / `admin123`
     *   *Tài khoản Bác sĩ:* `doctor` / `doctor123` (hoặc tạo từ trang Admin)
-*   **⚡ Backend API Docs (Swagger):** `http://localhost:8000/docs`
-*   **🧠 MLOps - MLflow Registry:** `http://localhost:5000`
-*   **📈 Giám sát hệ thống - Grafana:** `http://localhost:3000` (User/Pass: `admin` / `admin`)
-*   **🔍 Metrics thô - Prometheus:** `http://localhost:9090`
+*   **Backend API Docs (Swagger):** `http://localhost:8000/docs`
+*   **MLOps - MLflow Registry:** `http://localhost:5000`
+*   **Giám sát hệ thống - Grafana:** `http://localhost:3000` (User/Pass: `admin` / `admin`)
+*   **Metrics thô - Prometheus:** `http://localhost:9090`
 
 ### 4. Tắt hệ thống
 Để dừng và xóa toàn bộ container:
@@ -72,7 +72,7 @@ Sau khi các container khởi động thành công, bạn có thể truy cập q
 docker-compose down
 ```
 
-## 🧪 Hướng dẫn kiểm thử (Testing & CI)
+##  Hướng dẫn kiểm thử (Testing & CI)
 
 Hệ thống có bộ Test Suite hoàn chỉnh và tích hợp CI thông qua GitHub Actions. Bạn cũng có thể chạy giả lập ở máy nội bộ:
 
@@ -91,4 +91,3 @@ locust -f locustfile.py
 Mở trình duyệt tại: `http://localhost:8089`, cấu hình số lượng ảo người dùng để theo dõi sức chịu tải thực tế của API. Mọi thông số tải cũng có thể xem trực quan thông qua Grafana.
 
 ---
-*Bản quyền thuộc về Nhóm phát triển môn học CNM 2026.*
