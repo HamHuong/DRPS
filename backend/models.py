@@ -18,6 +18,7 @@ class Patient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     patient_code = Column(String, unique=True, index=True)
+    patient_name = Column(String, nullable=True)
     race = Column(String)
     gender = Column(String)
     age_group = Column(String)

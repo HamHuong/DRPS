@@ -18,10 +18,30 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Credentials")
     
+    if getattr(user, 'is_active', None) is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tài khoản đã bị khóa")
+        
     if not verify_password(user_credentials.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Credentials")
         
     return user
+
+@router.post("/register", response_model=schemas.UserResponse)
+def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(models.User).filter(models.User.username == user_data.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_pwd = get_password_hash(user_data.password)
+    new_user = models.User(
+        username=user_data.username,
+        password_hash=hashed_pwd,
+        role=user_data.role
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 # Helper endpoint to create initial users (for demo purposes)
 @router.post("/setup")

@@ -20,13 +20,30 @@ def get_admin_overview(db: Session = Depends(get_db)):
     if total_preds > 0:
         high_risk_percentage = int((high_risk_count / total_preds) * 100)
 
-    # Active model
-    # Assuming best_model.pkl is loaded, we might not have a DB record synced yet.
-    # We will just return a static name or the latest MLModel from DB if available.
-    latest_model = db.query(models.MLModel).order_by(models.MLModel.id.desc()).first()
-    active_model_name = latest_model.name if latest_model else "Logistic_Regression_v1"
-    auc = latest_model.auc_roc if latest_model else 0.86
-    recall = latest_model.f1_score if latest_model else 0.84 # Demo placeholder if no db model
+    # Active model from MLflow
+    import os
+    import mlflow
+    from mlflow.tracking import MlflowClient
+    
+    active_model_name = "Unknown"
+    auc = 0.0
+    recall = 0.0
+    
+    try:
+        MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        mlflow.set_tracking_uri(MLFLOW_URI)
+        client = MlflowClient()
+        versions = client.search_model_versions("name='ReadmissionPredictionModel'")
+        if versions:
+            # Sort by version descending to get latest
+            versions = sorted(versions, key=lambda x: int(x.version), reverse=True)
+            latest = versions[0]
+            run = client.get_run(latest.run_id)
+            active_model_name = run.data.params.get("model_type", "Unknown")
+            auc = float(run.data.metrics.get("roc_auc", 0.0))
+            recall = float(run.data.metrics.get("recall", 0.0))
+    except Exception as e:
+        print(f"Stats MLflow error: {e}")
     
     return {
         "total_predictions": total_preds,
@@ -46,31 +63,34 @@ def get_admin_overview(db: Session = Depends(get_db)):
 
 @router.get("/doctors")
 def get_doctors(db: Session = Depends(get_db)):
-    # Return all doctors
-    doctors = db.query(models.User).filter(models.User.role == 'doctor').all()
-    # Also get prediction count per doctor
+    # Return all users for Admin User Management
+    users = db.query(models.User).all()
     result = []
-    for doc in doctors:
-        pred_count = db.query(models.Prediction).filter(models.Prediction.user_id == doc.id).count()
+    for user in users:
+        pred_count = db.query(models.Prediction).filter(models.Prediction.user_id == user.id).count()
         result.append({
-            "id": doc.id,
-            "username": doc.username,
-            "is_active": doc.is_active,
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "is_active": user.is_active,
             "predictions_made": pred_count,
-            "created_at": doc.created_at
+            "created_at": user.created_at
         })
     return result
 
 @router.get("/patients/history")
-def get_patient_history(db: Session = Depends(get_db)):
-    # Lấy lịch sử dự đoán mới nhất, kèm tên bệnh nhân
-    predictions = db.query(models.Prediction).order_by(models.Prediction.predicted_at.desc()).limit(50).all()
+def get_patient_history(user_id: int = None, db: Session = Depends(get_db)):
+    query = db.query(models.Prediction)
+    if user_id is not None:
+        query = query.filter(models.Prediction.user_id == user_id)
+    predictions = query.order_by(models.Prediction.predicted_at.desc()).limit(50).all()
     result = []
     for p in predictions:
         patient = p.patient
         result.append({
             "id": p.id,
             "patient_code": patient.patient_code,
+            "patient_name": patient.patient_name,
             "age_group": patient.age_group,
             "probability": p.probability,
             "risk_level": p.risk_level,

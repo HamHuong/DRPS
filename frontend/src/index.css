@@ -322,20 +322,178 @@ select.form-input option {
     text-align: left;
 }
 
-/* --- ADMIN UI CLASSES --- */
-.adm-wrap { display: flex; min-height: 100vh; background: var(--color-background-tertiary); overflow: hidden; }
-.adm-side { width: 220px; flex-shrink: 0; background: var(--color-background-primary); border-right: 1px solid var(--color-border-tertiary); display: flex; flex-direction: column; padding: 20px 0; }
-.adm-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--color-border-tertiary); margin-bottom: 15px; }
-.adm-logo-title { font-size: 18px; font-weight: 600; color: var(--color-text-primary); margin: 0; display: flex; align-items: center; gap: 8px; }
-.adm-logo-sub { font-size: 12px; color: var(--color-text-secondary); margin: 4px 0 0; }
-.adm-nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; font-size: 14px; cursor: pointer; color: var(--color-text-secondary); transition: all 0.2s; user-select: none; border: none; background: transparent; width: 100%; text-align: left; }
-.adm-nav-item:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
-.adm-nav-item.active { background: var(--color-background-info); color: var(--color-text-info); font-weight: 500; border-right: 3px solid var(--color-border-info); }
-.adm-nav-section { font-size: 11px; color: var(--color-text-tertiary); padding: 15px 20px 5px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+/* ============================================================
+   NAVY BLUE DASHBOARD THEME — CSS Variables
+   ============================================================ */
+:root {
+  --navy-900:  #071829;
+  --navy-800:  #0F2444;
+  --navy-700:  #163257;
+  --navy-600:  #185FA5;
+  --navy-500:  #2577C8;
+  --navy-400:  #60ABFB;
+  --navy-300:  #93C5FD;
+  --navy-100:  #DBEAFE;
+  --topbar-bg:     #ffffff;
+  --topbar-border: #E2E8F0;
+  --topbar-text:   #0F2444;
+  --topbar-muted:  #64748B;
+  --page-bg:   #F1F5F9;
+  --card-bg:   #ffffff;
+  --card-border: #E2E8F0;
+  --transition-fast: 0.15s ease;
+  --transition-med:  0.22s ease;
+}
+
+/* --- ADMIN LAYOUT --- */
+.adm-wrap { display: flex; min-height: 100vh; background: var(--page-bg); overflow: hidden; }
+
+/* --- SIDEBAR --- */
+.adm-side {
+  width: 230px;
+  flex-shrink: 0;
+  background-color: var(--navy-800);
+  border-right: none;
+  box-shadow: 4px 0 24px rgba(7, 24, 41, 0.18);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.adm-logo {
+  padding: 18px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 8px;
+}
+
+.adm-logo-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+
+.adm-logo-sub {
+  font-size: 11px;
+  color: var(--navy-300);
+  margin: 4px 0 0;
+  opacity: 0.7;
+}
+
+.adm-nav-section {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--navy-300);
+  opacity: 0.5;
+  padding: 16px 16px 6px;
+}
+
+/* --- NAV ITEMS --- */
+.adm-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 400;
+  cursor: pointer;
+  color: var(--navy-300);
+  position: relative;
+  user-select: none;
+  border: none;
+  background: transparent;
+  width: calc(100% - 16px);
+  text-align: left;
+  margin: 2px 8px;
+  border-radius: 8px;
+  transition: background-color var(--transition-fast), color var(--transition-fast), padding-left var(--transition-fast);
+}
+
+.adm-nav-item svg { opacity: 0.75; transition: opacity var(--transition-fast); flex-shrink: 0; }
+
+.adm-nav-item:hover {
+  background-color: rgba(255,255,255,0.08);
+  color: var(--navy-100);
+  padding-left: 16px;
+}
+
+.adm-nav-item:hover svg { opacity: 1; }
+
+.adm-nav-item.active {
+  background-color: var(--navy-600);
+  color: #ffffff;
+  font-weight: 500;
+  padding-left: 16px;
+  box-shadow: 0 2px 8px rgba(24, 95, 165, 0.35);
+}
+
+.adm-nav-item.active svg { opacity: 1; color: #ffffff; }
+
+/* Vạch dọc xanh sáng bên trái khi active */
+.adm-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+  background: var(--navy-400);
+  border-radius: 0 3px 3px 0;
+  animation: slideInBar 0.18s ease forwards;
+}
+
+@keyframes slideInBar {
+  from { opacity: 0; transform: scaleY(0.4); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+/* --- MAIN & TOPBAR --- */
 .adm-main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.adm-topbar { background: var(--color-background-primary); border-bottom: 1px solid var(--color-border-tertiary); padding: 15px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-.adm-content { flex: 1; padding: 24px; overflow: auto; display: flex; flex-direction: column; gap: 20px; }
+
+.adm-topbar {
+  background-color: var(--topbar-bg);
+  border-bottom: 1px solid var(--topbar-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 58px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Ghi đè lại: text trong topbar dùng màu tối (topbar trắng) */
+.adm-topbar span { color: var(--topbar-text) !important; }
+.adm-topbar button {
+  color: var(--topbar-muted) !important;
+  background: transparent !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 7px;
+  transition: background-color var(--transition-fast);
+}
+.adm-topbar button:hover {
+  background: #F1F5F9 !important;
+  color: var(--topbar-text) !important;
+}
+
+/* --- PAGE CONTENT --- */
+.adm-content { flex: 1; padding: 24px 28px; overflow: auto; display: flex; flex-direction: column; gap: 20px; background: var(--page-bg); }
 .adm-page { display: flex; flex-direction: column; gap: 20px; }
+
+/* --- SCROLLBAR SIDEBAR --- */
+.adm-side::-webkit-scrollbar { width: 4px; }
+.adm-side::-webkit-scrollbar-track { background: transparent; }
+.adm-side::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+.adm-side::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
 .stat-card { background: var(--color-background-primary); border: 1px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 20px; }

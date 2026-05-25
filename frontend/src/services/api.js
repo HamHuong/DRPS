@@ -14,6 +14,11 @@ export const loginUser = async (username, password) => {
   return response.data;
 };
 
+export const registerUser = async (userData) => {
+  const response = await api.post('/auth/register', userData);
+  return response.data;
+};
+
 export const setupUsers = async () => {
     const response = await api.post('/auth/setup');
     return response.data;
@@ -34,13 +39,19 @@ export const getDoctors = async () => {
     return response.data;
 };
 
-export const getPatientHistory = async () => {
-    const response = await api.get('/stats/patients/history');
+export const getPatientHistory = async (userId = null) => {
+    const url = userId ? `/stats/patients/history?user_id=${userId}` : '/stats/patients/history';
+    const response = await api.get(url);
     return response.data;
 };
 
 export const updateProfile = async (userId, newUsername) => {
     const response = await api.put(`/stats/profile/${userId}?new_username=${newUsername}`);
+    return response.data;
+};
+
+export const getMLflowRegistry = async () => {
+    const response = await api.get('/mlops/registry');
     return response.data;
 };
 

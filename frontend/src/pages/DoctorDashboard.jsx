@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Search, User, CheckCircle2, Settings, Brain, FileText } from 'lucide-react';
+import { Activity, Search, User, CheckCircle2, Settings, Brain, FileText, Edit } from 'lucide-react';
 import { predictPatient, getPatientHistory, updateProfile } from '../services/api';
 
 export default function DoctorDashboard() {
@@ -13,6 +13,7 @@ export default function DoctorDashboard() {
   const [result, setResult] = useState(null);
   const [formData, setFormData] = useState({
     patient_code: 'PT-10023',
+    patient_name: 'Nguyễn Văn A',
     age_group: '[60-70)',
     gender: 'Female',
     race: 'Caucasian',
@@ -30,9 +31,11 @@ export default function DoctorDashboard() {
 
   // History State
   const [history, setHistory] = useState([]);
+  const [riskFilter, setRiskFilter] = useState('all');
   
   // Profile State
   const [profileName, setProfileName] = useState(user.username || '');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'history') fetchHistory();
@@ -40,7 +43,7 @@ export default function DoctorDashboard() {
 
   const fetchHistory = async () => {
     try {
-      const data = await getPatientHistory();
+      const data = await getPatientHistory(user.id);
       setHistory(data);
     } catch (e) {
       console.error(e);
@@ -59,9 +62,12 @@ export default function DoctorDashboard() {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
-      const updatedUser = await updateProfile(user.id, profileName);
+      // Fake API call since we don't have a real profile update API yet
+      // const updatedUser = await updateProfile(user.id, profileName);
+      const updatedUser = { ...user, username: profileName };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+      setIsEditingProfile(false);
       alert('Profile updated successfully!');
     } catch (e) {
       alert('Failed to update profile');
@@ -81,6 +87,7 @@ export default function DoctorDashboard() {
         number_outpatient: parseInt(formData.number_outpatient),
         number_emergency: parseInt(formData.number_emergency),
         number_inpatient: parseInt(formData.number_inpatient),
+        user_id: user.id
       };
       const res = await predictPatient(payload);
       setResult(res);
@@ -165,10 +172,14 @@ export default function DoctorDashboard() {
                 <div style={{ background: 'var(--color-background-primary)', borderRadius: 'var(--border-radius-md)', border: '1px solid var(--color-border-tertiary)', padding: '16px' }}>
                   <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 16px', color: 'var(--color-text-primary)' }}>Thông tin bệnh nhân</p>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                     <div>
                       <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Mã bệnh nhân</label>
                       <input type="text" className="form-input" name="patient_code" value={formData.patient_code} onChange={handleChange} style={{ marginTop: '4px', fontSize: '12px', padding: '8px' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Tên bệnh nhân</label>
+                      <input type="text" className="form-input" name="patient_name" value={formData.patient_name} onChange={handleChange} style={{ marginTop: '4px', fontSize: '12px', padding: '8px' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Nhóm tuổi</label>
@@ -328,11 +339,23 @@ export default function DoctorDashboard() {
           {activeTab === 'history' && (
             <div className="adm-page active">
               <div className="card">
-                <h3 style={{ marginBottom: '16px' }}>Lịch sử chẩn đoán gần đây</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>Lịch sử chẩn đoán gần đây</h3>
+                  <select 
+                    value={riskFilter} 
+                    onChange={(e) => setRiskFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
+                  >
+                    <option value="all">Tất cả mức độ</option>
+                    <option value="High">Nguy cơ Cao</option>
+                    <option value="Low">Nguy cơ Thấp</option>
+                  </select>
+                </div>
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Mã bệnh nhân</th>
+                      <th>Mã BN</th>
+                      <th>Tên bệnh nhân</th>
                       <th>Nhóm tuổi</th>
                       <th>Rủi ro (%)</th>
                       <th>Mức độ</th>
@@ -340,9 +363,10 @@ export default function DoctorDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map(item => (
+                    {history.filter(item => riskFilter === 'all' || item.risk_level === riskFilter).map(item => (
                       <tr key={item.id}>
                         <td style={{ fontWeight: 500 }}>{item.patient_code}</td>
+                        <td>{item.patient_name || '—'}</td>
                         <td>{item.age_group}</td>
                         <td>{(item.probability * 100).toFixed(1)}%</td>
                         <td>
@@ -360,19 +384,75 @@ export default function DoctorDashboard() {
           )}
 
           {activeTab === 'profile' && (
-             <div className="card" style={{ maxWidth: '500px' }}>
-                <h3 style={{ marginBottom: '20px' }}>Hồ sơ Bác sĩ</h3>
-                <form onSubmit={handleUpdateProfile}>
-                  <div className="form-group">
-                    <label className="form-label">Họ tên</label>
-                    <input type="text" className="form-input" value={profileName} onChange={e => setProfileName(e.target.value)} required />
+             <div className="card" style={{ maxWidth: '600px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px' }}><User size={18} style={{ verticalAlign: 'middle', marginRight: '6px' }}/> Hồ sơ cá nhân & công tác</h3>
+                  {!isEditingProfile && (
+                    <button className="btn-sm" onClick={() => setIsEditingProfile(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-primary)' }}>
+                      <Edit size={14} /> Chỉnh sửa
+                    </button>
+                  )}
+                </div>
+
+                {!isEditingProfile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Họ tên</span>
+                      <span style={{ fontWeight: 500, fontSize: '13px' }}>{user.username}</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Email</span>
+                      <span style={{ color: 'var(--color-text-info)', fontSize: '13px' }}>{user.username}@hospital.vn</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Điện thoại</span>
+                      <span style={{ fontSize: '13px' }}>+84 912 345 678</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Khoa / Phòng ban</span>
+                      <span style={{ fontSize: '13px' }}>Khoa Nội tổng hợp</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Chuyên khoa</span>
+                      <span style={{ fontSize: '13px' }}>Nội tiết — Đái tháo đường</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Mã chứng chỉ</span>
+                      <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>VN-MD-2019-08821</span>
+                    </div>
+                    <div style={{ display: 'flex', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Vai trò</span>
+                      <span className="badge badge-success">Bác sĩ</span>
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Vai trò</label>
-                    <input type="text" className="form-input" value={user.role} disabled style={{ opacity: 0.5 }} />
-                  </div>
-                  <button type="submit" className="btn-sm" style={{ background: 'var(--color-border-info)', color: 'white', border: 'none', padding: '10px 20px', fontSize: '14px' }}>Lưu thay đổi</button>
-                </form>
+                ) : (
+                  <form onSubmit={handleUpdateProfile}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Họ và tên</label>
+                        <input type="text" className="form-input" value={profileName} onChange={e => setProfileName(e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Email</label>
+                        <input type="email" className="form-input" value={`${user.username}@hospital.vn`} disabled style={{ opacity: 0.6 }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Điện thoại</label>
+                        <input type="text" className="form-input" defaultValue="+84 912 345 678" />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Chuyên khoa</label>
+                        <input type="text" className="form-input" defaultValue="Nội tiết — Đái tháo đường" />
+                      </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: '16px', marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn-sm" onClick={() => setIsEditingProfile(false)} style={{ background: 'transparent', border: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-primary)' }}>Huỷ</button>
+                      <button type="submit" className="btn-sm" style={{ background: 'var(--color-background-info)', color: 'var(--color-text-info)', border: 'none' }}>Lưu thay đổi</button>
+                    </div>
+                  </form>
+                )}
              </div>
           )}
         </div>

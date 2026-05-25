@@ -13,6 +13,20 @@ export default function LandingPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!username.trim()) {
+      setError('Vui lòng nhập tên đăng nhập!');
+      return;
+    }
+    if (!password) {
+      setError('Vui lòng nhập mật khẩu!');
+      return;
+    }
+    if (password.length < 5) {
+      setError('Mật khẩu phải có ít nhất 5 ký tự!');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -55,7 +69,7 @@ export default function LandingPage() {
         </h2>
         
         <p style={{ fontSize: '18px', color: '#bfdbfe', lineHeight: 1.6, marginBottom: '40px', maxWidth: '600px' }}>
-          Hệ thống ứng dụng Machine Learning (XGBoost) phân tích dữ liệu bệnh án điện tử, hỗ trợ bác sĩ đưa ra quyết định lâm sàng chính xác tại điểm chăm sóc (point-of-care).
+          Hệ thống ứng dụng Machine Learning phân tích dữ liệu bệnh án điện tử, hỗ trợ bác sĩ đưa ra quyết định lâm sàng chính xác tại điểm chăm sóc (point-of-care).
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>

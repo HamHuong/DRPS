@@ -18,6 +18,8 @@ services:
     container_name: mlflow_server
     ports:
       - "5000:5000"
+    environment:
+      - MLFLOW_SERVER_ALLOWED_HOSTS=*
     command: >
       bash -c "pip install --default-timeout=1000 mlflow psycopg2-binary && 
       mlflow server --backend-store-uri postgresql://admin:adminpassword@db:5432/drps_db --default-artifact-root /mlflow_artifacts --host 0.0.0.0 --port 5000"

@@ -7,6 +7,11 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -18,6 +23,7 @@ class UserResponse(BaseModel):
 # --- Patient Schemas ---
 class PatientBase(BaseModel):
     patient_code: str
+    patient_name: Optional[str] = None
     race: str
     gender: str
     age_group: str
@@ -37,7 +43,7 @@ class PatientCreate(PatientBase):
 
 # --- Prediction Schemas ---
 class PredictionRequest(PatientBase):
-    pass
+    user_id: Optional[int] = None
 
 class PredictionResponse(BaseModel):
     probability: float

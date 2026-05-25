@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Cpu, ClipboardList, CheckCircle2, ArrowUpRight, Edit, Lock, Unlock, Play, RotateCcw, Settings, AlertTriangle, Clock, XCircle, Download } from 'lucide-react';
+import { LayoutDashboard, Users, Cpu, ClipboardList, CheckCircle2, ArrowUpRight, Edit, Lock, Unlock, Play, RotateCcw, Settings, AlertTriangle, Clock, XCircle, Download, User, Plus, Eye, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getAdminOverview, getDoctors, updateProfile } from '../services/api';
+import { getAdminOverview, getDoctors, updateProfile, registerUser, getMLflowRegistry } from '../services/api';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -13,11 +13,35 @@ export default function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [profileName, setProfileName] = useState(user.username || '');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'doctor' });
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [registeredModels, setRegisteredModels] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   useEffect(() => {
     fetchOverview();
     fetchDoctors();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'mlops') {
+      fetchMLflowModels();
+    }
+  }, [activeTab]);
+
+  const fetchMLflowModels = async () => {
+    try {
+      const data = await getMLflowRegistry();
+      if (data.status === 'success') {
+        setRegisteredModels(data.models);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchOverview = async () => {
     try {
@@ -65,6 +89,9 @@ export default function AdminDashboard() {
         <button className={`adm-nav-item ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
           <ClipboardList size={16} /> Audit logs
         </button>
+        <button className={`adm-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+          <User size={16} /> Profile
+        </button>
         
         <div style={{ marginTop: 'auto', padding: '10px 20px', borderTop: '1px solid var(--color-border-tertiary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -80,7 +107,7 @@ export default function AdminDashboard() {
       <div className="adm-main">
         <div className="adm-topbar">
           <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'users' ? 'Quản lý người dùng' : activeTab === 'mlops' ? 'MLOps / Quản lý model' : 'Audit logs'}
+            {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'users' ? 'Quản lý người dùng' : activeTab === 'mlops' ? 'MLOps / Quản lý model' : activeTab === 'logs' ? 'Audit logs' : 'Admin Profile'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '12px', background: 'var(--color-background-success)', color: 'var(--color-text-success)', padding: '4px 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -214,65 +241,213 @@ export default function AdminDashboard() {
 
           {activeTab === 'users' && (
             <div className="adm-page active">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Danh sách Bác sĩ</h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Quản lý người dùng</h2>
+                  <span style={{ fontSize: '12px', background: 'var(--color-background-success)', color: 'var(--color-text-success)', padding: '4px 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--color-border-success)' }}>
+                    <CheckCircle2 size={14} /> Hệ thống hoạt động
+                  </span>
+                </div>
               </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Tìm tên, email..." 
+                  className="form-input" 
+                  style={{ flex: 1, maxWidth: '250px' }}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <select 
+                  className="form-input" 
+                  style={{ width: '150px' }}
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="all">Tất cả vai trò</option>
+                  <option value="doctor">Bác sĩ</option>
+                  <option value="admin">Quản trị viên</option>
+                  <option value="data_scientist">Data Scientist</option>
+                </select>
+                <div style={{ flex: 1 }}></div>
+                <button className="btn-sm" onClick={() => setShowAddUser(!showAddUser)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#bfdbfe', color: '#1e40af', border: 'none', fontWeight: 500 }}>
+                  <Plus size={16} /> Thêm người dùng
+                </button>
+              </div>
+
+              {showAddUser && (
+                <div className="card" style={{ marginBottom: '16px', background: 'var(--color-background-secondary)' }}>
+                  <h3 style={{ fontSize: '14px', marginBottom: '12px', marginTop: 0 }}>Thêm tài khoản mới</h3>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    try {
+                      await registerUser({
+                        username: newUser.username,
+                        password: newUser.password,
+                        role: newUser.role
+                      });
+                      alert('Thêm người dùng thành công!');
+                      setShowAddUser(false);
+                      setNewUser({ username: '', password: '', role: 'doctor' });
+                      fetchDoctors(); // Refresh the table
+                      fetchOverview(); // Refresh the stats
+                    } catch (error) {
+                      alert('Lỗi: Tên đăng nhập đã tồn tại hoặc có lỗi xảy ra.');
+                    }
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Tên đăng nhập</label>
+                        <input type="text" className="form-input" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Mật khẩu</label>
+                        <input type="password" className="form-input" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Vai trò</label>
+                        <select className="form-input" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                          <option value="doctor">Bác sĩ</option>
+                          <option value="admin">Quản trị viên</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn-sm" onClick={() => setShowAddUser(false)} style={{ background: 'transparent', border: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-primary)' }}>Huỷ</button>
+                      <button type="submit" className="btn-sm" style={{ background: 'var(--color-background-success)', color: 'var(--color-text-success)', border: 'none' }}>Xác nhận thêm</button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
               <div className="card" style={{ padding: 0 }}>
                 <table className="tbl">
-                  <colgroup><col style={{ width: '10%' }}/><col style={{ width: '30%' }}/><col style={{ width: '20%' }}/><col style={{ width: '20%' }}/><col style={{ width: '20%' }}/></colgroup>
+                  <colgroup><col style={{ width: '30%' }}/><col style={{ width: '25%' }}/><col style={{ width: '15%' }}/><col style={{ width: '15%' }}/><col style={{ width: '15%' }}/></colgroup>
                   <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Người dùng</th>
-                      <th>Vai trò</th>
-                      <th>Trạng thái</th>
-                      <th>Lượt khám</th>
+                    <tr style={{ borderBottom: '1px solid var(--color-border-tertiary)' }}>
+                      <th style={{ background: 'transparent' }}>Người dùng</th>
+                      <th style={{ background: 'transparent' }}>Email</th>
+                      <th style={{ background: 'transparent' }}>Vai trò</th>
+                      <th style={{ background: 'transparent' }}>Trạng thái</th>
+                      <th style={{ background: 'transparent', textAlign: 'center' }}>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {doctors.map(doc => (
-                      <tr key={doc.id}>
-                        <td style={{ color: 'var(--color-text-secondary)' }}>#{doc.id}</td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div className="avatar" style={{ background: doc.is_active ? 'var(--color-background-success)' : 'var(--color-background-danger)', color: doc.is_active ? 'var(--color-text-success)' : 'var(--color-text-danger)' }}>
+                    {doctors.filter(doc => {
+                      const matchesSearch = doc.username.toLowerCase().includes(searchTerm.toLowerCase());
+                      const matchesRole = roleFilter === 'all' || doc.role === roleFilter;
+                      return matchesSearch && matchesRole;
+                    }).map(doc => {
+                      const isDataScientist = doc.role === 'data_scientist' || doc.username.includes('ds') || doc.username.includes('minh');
+                      const roleDisplay = isDataScientist ? 'Data Scientist' : doc.role === 'admin' ? 'Quản trị viên' : 'Bác sĩ';
+                      const roleBadgeClass = isDataScientist ? 'badge-warning' : doc.role === 'admin' ? 'badge-danger' : 'badge-info';
+                      const depDisplay = isDataScientist ? 'ML Team' : doc.role === 'admin' ? 'Ban Giám đốc' : 'Khoa Nội';
+
+                      return (
+                      <tr key={doc.id} style={{ borderBottom: '1px solid var(--color-border-tertiary)' }}>
+                        <td style={{ padding: '16px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div className="avatar" style={{ background: '#dbeafe', color: '#1e40af', width: '36px', height: '36px', fontSize: '13px' }}>
                               {doc.username.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <p style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>{doc.username}</p>
+                              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                {doc.username.charAt(0).toUpperCase() + doc.username.slice(1)}
+                              </p>
+                              <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                {depDisplay}
+                              </p>
                             </div>
                           </div>
                         </td>
-                        <td><span className="badge badge-info">Bác sĩ</span></td>
+                        <td style={{ color: 'var(--color-text-secondary)' }}>{doc.username.toLowerCase()}@hospital.vn</td>
+                        <td>
+                          <span className={`badge ${roleBadgeClass}`} style={{ borderRadius: '4px' }}>{roleDisplay}</span>
+                        </td>
                         <td>
                           {doc.is_active ? (
-                            <span className="badge badge-success">Hoạt động</span>
+                            <span className="badge" style={{ background: '#dcfce7', color: '#166534', padding: '4px 12px', borderRadius: '16px' }}>Hoạt động</span>
                           ) : (
-                            <span className="badge badge-danger">Đã khoá</span>
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px', fontWeight: 500 }}>Bị khoá</span>
                           )}
                         </td>
-                        <td><span style={{ fontWeight: 500 }}>{doc.predictions_made}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                            <button className="btn-sm" onClick={() => setSelectedDoctor(doc)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--color-border-tertiary)', borderRadius: '4px', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                              <Edit size={14} />
+                            </button>
+                            <button className="btn-sm" style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--color-border-tertiary)', borderRadius: '4px', color: doc.is_active ? 'var(--color-text-danger)' : 'var(--color-text-success)', cursor: 'pointer' }}>
+                              {doc.is_active ? <Lock size={14} /> : <Unlock size={14} />}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
+          {selectedDoctor && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+              <div className="card" style={{ width: '500px', padding: '0', overflow: 'hidden' }}>
+                <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border-tertiary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-background-secondary)' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px' }}><User size={18} /> Hồ sơ Bác sĩ</h3>
+                  <button onClick={() => setSelectedDoctor(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><X size={20} /></button>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Họ tên</span>
+                      <span style={{ fontWeight: 500, fontSize: '13px' }}>{selectedDoctor.username}</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Email</span>
+                      <span style={{ color: 'var(--color-text-info)', fontSize: '13px' }}>{selectedDoctor.username}@hospital.vn</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Điện thoại</span>
+                      <span style={{ fontSize: '13px' }}>+84 912 345 678</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Chuyên khoa</span>
+                      <span style={{ fontSize: '13px' }}>Nội tiết — Đái tháo đường</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Tổng ca dự đoán</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-success)' }}>{selectedDoctor.predictions_made}</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '10px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Ngày tạo tài khoản</span>
+                      <span style={{ fontSize: '13px' }}>{new Date(selectedDoctor.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ display: 'flex' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Trạng thái</span>
+                      {selectedDoctor.is_active ? <span className="badge badge-success">Hoạt động</span> : <span className="badge badge-danger">Đã khoá</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'mlops' && (
             <div className="adm-page active">
+              {registeredModels.length > 0 ? (
+              <>
               <div className="stat-grid">
                 <div className="stat-card">
                   <p className="stat-label">Model hiện tại</p>
-                  <p className="stat-val">v2.1</p>
-                  <p className="stat-delta" style={{ color: 'var(--color-text-success)' }}>XGBoost · Production</p>
+                  <p className="stat-val">{registeredModels[0].version}</p>
+                  <p className="stat-delta" style={{ color: 'var(--color-text-success)' }}>{registeredModels[0].algorithm} · {registeredModels[0].status}</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">AUC-ROC</p>
-                  <p className="stat-val">0.84</p>
-                  <p className="stat-delta" style={{ color: 'var(--color-text-success)' }}>+0.03 vs v2.0</p>
+                  <p className="stat-val">{registeredModels[0].auc_roc}</p>
+                  <p className="stat-delta" style={{ color: 'var(--color-text-success)' }}>Latest version</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">Data drift (PSI)</p>
@@ -295,10 +470,19 @@ export default function AdminDashboard() {
                       <th>Phiên bản</th><th>Thuật toán</th><th>AUC-ROC</th><th>Recall</th><th>Trạng thái</th>
                     </tr></thead>
                     <tbody>
-                      <tr><td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>v2.1</td><td>XGBoost</td><td style={{ color: 'var(--color-text-success)' }}>0.84</td><td>0.73</td><td><span className="badge badge-success">Production</span></td></tr>
-                      <tr><td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>v2.0</td><td>XGBoost</td><td>0.81</td><td>0.69</td><td><span className="badge badge-neutral">Archived</span></td></tr>
-                      <tr><td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>v1.5</td><td>Random Forest</td><td>0.79</td><td>0.65</td><td><span className="badge badge-neutral">Archived</span></td></tr>
-                      <tr><td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>v1.0</td><td>Logistic Reg.</td><td>0.74</td><td>0.61</td><td><span className="badge badge-neutral">Archived</span></td></tr>
+                      {registeredModels.map(model => (
+                        <tr key={model.version}>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{model.version}</td>
+                          <td>{model.algorithm}</td>
+                          <td style={{ color: model.status === 'Production' ? 'var(--color-text-success)' : 'inherit' }}>{model.auc_roc}</td>
+                          <td>{model.recall}</td>
+                          <td>
+                            <span className={`badge ${model.status === 'Production' ? 'badge-success' : 'badge-neutral'}`}>
+                              {model.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -335,22 +519,26 @@ export default function AdminDashboard() {
                   </div>
                   {[
                     { label: 'T2 2026-05-22', auc: 0.84, rec: 0.73, lat: 85 },
-                    { label: 'CN 2026-05-21', auc: 0.83, rec: 0.72, lat: 91 },
-                    { label: 'T7 2026-05-20', auc: 0.84, rec: 0.74, lat: 88 },
-                    { label: 'T6 2026-05-19', auc: 0.82, rec: 0.71, lat: 94 },
-                    { label: 'T5 2026-05-18', auc: 0.83, rec: 0.70, lat: 87 }
-                  ].map((m, i) => (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px 60px', gap: '12px', alignItems: 'center', fontSize: '12px' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>{m.label}</span>
-                      <div style={{ background: 'var(--color-background-secondary)', borderRadius: '4px', height: '8px' }}>
-                        <div style={{ width: `${Math.round(m.auc * 100)}%`, height: '100%', background: 'var(--color-border-success)', borderRadius: '4px' }}></div>
-                      </div>
-                      <span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.rec.toFixed(2)}</span>
-                      <span style={{ textAlign: 'right', color: 'var(--color-text-secondary)' }}>{m.lat}ms</span>
+                    { d: '05-18', a: 0.82, r: 0.70, l: 95 },
+                    { d: '05-19', a: 0.84, r: 0.73, l: 87 },
+                    { d: '05-20', a: 0.84, r: 0.73, l: 85 },
+                    { d: '05-21', a: 0.83, r: 0.72, l: 88 }
+                  ].map(item => (
+                    <div key={item.d} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px 60px', gap: '12px', fontSize: '13px', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500 }}>{item.d}</span>
+                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${item.a * 100}%`, background: 'var(--color-border-info)' }}></div></div>
+                      <span style={{ textAlign: 'right' }}>{item.r}</span>
+                      <span style={{ textAlign: 'right', color: 'var(--color-text-secondary)' }}>{item.l}ms</span>
                     </div>
                   ))}
                 </div>
               </div>
+              </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', flexDirection: 'column', color: 'var(--color-text-secondary)' }}>
+                  <p>Đang tải dữ liệu từ MLflow...</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -364,6 +552,82 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
+          )}
+
+          {activeTab === 'profile' && (
+             <div className="card" style={{ maxWidth: '600px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px' }}><User size={18} style={{ verticalAlign: 'middle', marginRight: '6px' }}/> Hồ sơ cá nhân & công tác</h3>
+                  {!isEditingProfile && (
+                    <button className="btn-sm" onClick={() => setIsEditingProfile(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-primary)' }}>
+                      <Edit size={14} /> Chỉnh sửa
+                    </button>
+                  )}
+                </div>
+
+                {!isEditingProfile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Họ tên</span>
+                      <span style={{ fontWeight: 500, fontSize: '13px' }}>{user.username}</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Email</span>
+                      <span style={{ color: 'var(--color-text-info)', fontSize: '13px' }}>{user.username}@drps.vn</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Điện thoại</span>
+                      <span style={{ fontSize: '13px' }}>+84 901 234 567</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Đơn vị</span>
+                      <span style={{ fontSize: '13px' }}>Ban CNTT — Bệnh viện Đa khoa</span>
+                    </div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Ngày tạo</span>
+                      <span style={{ fontSize: '13px' }}>15/01/2024</span>
+                    </div>
+                    <div style={{ display: 'flex', paddingBottom: '8px' }}>
+                      <span style={{ width: '150px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Vai trò</span>
+                      <span className="badge badge-danger">Quản trị viên</span>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const updatedUser = { ...user, username: profileName };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    setUser(updatedUser);
+                    setIsEditingProfile(false);
+                    alert('Profile updated successfully!');
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Họ và tên</label>
+                        <input type="text" className="form-input" value={profileName} onChange={e => setProfileName(e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Email</label>
+                        <input type="email" className="form-input" value={`${user.username}@drps.vn`} disabled style={{ opacity: 0.6 }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Điện thoại</label>
+                        <input type="text" className="form-input" defaultValue="+84 901 234 567" />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>Đơn vị</label>
+                        <input type="text" className="form-input" defaultValue="Ban CNTT — Bệnh viện Đa khoa" />
+                      </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: '16px', marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn-sm" onClick={() => setIsEditingProfile(false)} style={{ background: 'transparent', border: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-primary)' }}>Huỷ</button>
+                      <button type="submit" className="btn-sm" style={{ background: 'var(--color-background-info)', color: 'var(--color-text-info)', border: 'none' }}>Lưu thay đổi</button>
+                    </div>
+                  </form>
+                )}
+             </div>
           )}
 
         </div>

@@ -89,8 +89,12 @@ def predict(request: schemas.PredictionRequest, db: Session = Depends(get_db)):
         # Save patient to DB (if not exists)
         patient = db.query(models.Patient).filter(models.Patient.patient_code == request.patient_code).first()
         if not patient:
-            patient = models.Patient(**request.dict(), created_by=1) # Hardcoded user for now
+            patient = models.Patient(**request.dict(exclude={"user_id"}), created_by=request.user_id or 1)
             db.add(patient)
+            db.commit()
+            db.refresh(patient)
+        elif request.patient_name and patient.patient_name != request.patient_name:
+            patient.patient_name = request.patient_name
             db.commit()
             db.refresh(patient)
 
@@ -99,9 +103,9 @@ def predict(request: schemas.PredictionRequest, db: Session = Depends(get_db)):
             patient_id=patient.id,
             probability=float(proba),
             risk_level=risk_level,
-            readmitted_label=(risk_level=="High"), # Just an estimation for the DB
+            readmitted_label=(risk_level=="High"),
             shap_values=shap_dict,
-            user_id=1 # Hardcoded for now
+            user_id=request.user_id or 1
         )
         db.add(prediction_record)
         db.commit()
