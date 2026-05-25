@@ -15,8 +15,10 @@ from preprocessing import load_data, preprocess_data, create_preprocessor
 warnings.filterwarnings("ignore")
 
 # Setup MLflow
-os.environ["MLFLOW_TRACKING_URI"] = "http://localhost:5000" # Local run, change to http://mlflow:5000 inside docker
-mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+# Use environment variable if available (e.g. inside Docker), else fallback to localhost
+tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+os.environ["MLFLOW_TRACKING_URI"] = tracking_uri
+mlflow.set_tracking_uri(tracking_uri)
 mlflow.set_experiment("DRPS_Readmission_Prediction")
 
 def train_and_log_model(model_name, model, X_train, y_train, X_test, y_test, preprocessor):

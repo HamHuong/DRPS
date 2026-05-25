@@ -3,10 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers import auth, predict, stats, mlops
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 # Create all tables in the database
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Hospital Readmission Prediction System API")
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 # Setup CORS for frontend
 app.add_middleware(

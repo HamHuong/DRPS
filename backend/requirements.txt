@@ -15,3 +15,6 @@ mlflow
 joblib
 shap
 imbalanced-learn
+psutil
+prometheus-fastapi-instrumentator
+redis

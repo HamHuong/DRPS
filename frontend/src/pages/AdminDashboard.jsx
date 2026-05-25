@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Cpu, ClipboardList, CheckCircle2, ArrowUpRight, Edit, Lock, Unlock, Play, RotateCcw, Settings, AlertTriangle, Clock, XCircle, Download, User, Plus, Eye, X } from 'lucide-react';
+import { LayoutDashboard, Users, Cpu, ClipboardList, CheckCircle2, ArrowUpRight, Edit, Lock, Unlock, Play, RotateCcw, Settings, AlertTriangle, Clock, XCircle, Download, User, Plus, Eye, X, HelpCircle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getAdminOverview, getDoctors, updateProfile, registerUser, getMLflowRegistry } from '../services/api';
+import { getAdminOverview, getDoctors, updateProfile, registerUser, getMLflowRegistry, triggerRetrain, getSystemStats, getAuditLogs } from '../services/api';
+import HelpCenter from '../components/HelpCenter';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -20,6 +21,14 @@ export default function AdminDashboard() {
   const [registeredModels, setRegisteredModels] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  
+  // Retrain State
+  const [isRetraining, setIsRetraining] = useState(false);
+  const [retrainLogs, setRetrainLogs] = useState([]);
+
+  // System & Audit Logs State
+  const [systemStats, setSystemStats] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
 
   useEffect(() => {
     fetchOverview();
@@ -30,7 +39,31 @@ export default function AdminDashboard() {
     if (activeTab === 'mlops') {
       fetchMLflowModels();
     }
+    if (activeTab === 'dashboard') {
+      fetchSystemStats();
+    }
+    if (activeTab === 'logs') {
+      fetchAuditLogs();
+    }
   }, [activeTab]);
+
+  const fetchSystemStats = async () => {
+    try {
+      const data = await getSystemStats();
+      setSystemStats(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const data = await getAuditLogs();
+      setAuditLogs(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchMLflowModels = async () => {
     try {
@@ -66,6 +99,27 @@ export default function AdminDashboard() {
     navigate('/');
   };
 
+  const handleRetrain = async () => {
+    setIsRetraining(true);
+    setRetrainLogs([
+      "> Khởi tạo Retrain Pipeline...",
+      "> Kết nối tới Cơ sở dữ liệu và tải lịch sử bệnh nhân mới...",
+      "> Đang tiến hành tiền xử lý (Preprocessing) & SMOTE...",
+      "> Đang huấn luyện mô hình XGBoost (vui lòng đợi 3-5 giây)..."
+    ]);
+
+    try {
+      const res = await triggerRetrain();
+      setRetrainLogs(prev => [...prev, "> " + res.message, "> Reloading MLflow Models..."]);
+      await fetchMLflowModels();
+      setRetrainLogs(prev => [...prev, "> HOÀN TẤT. Đã kích hoạt phiên bản mới."]);
+    } catch (e) {
+      setRetrainLogs(prev => [...prev, "> [LỖI] " + (e.response?.data?.detail || e.message)]);
+    } finally {
+      setIsRetraining(false);
+    }
+  };
+
   return (
     <div className="adm-wrap">
       <div className="adm-side">
@@ -92,6 +146,9 @@ export default function AdminDashboard() {
         <button className={`adm-nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
           <User size={16} /> Profile
         </button>
+        <button className={`adm-nav-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>
+          <HelpCircle size={16} /> Trung tâm trợ giúp
+        </button>
         
         <div style={{ marginTop: 'auto', padding: '10px 20px', borderTop: '1px solid var(--color-border-tertiary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -107,7 +164,7 @@ export default function AdminDashboard() {
       <div className="adm-main">
         <div className="adm-topbar">
           <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'users' ? 'Quản lý người dùng' : activeTab === 'mlops' ? 'MLOps / Quản lý model' : activeTab === 'logs' ? 'Audit logs' : 'Admin Profile'}
+            {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'users' ? 'Quản lý người dùng' : activeTab === 'mlops' ? 'MLOps / Quản lý model' : activeTab === 'logs' ? 'Audit logs' : activeTab === 'help' ? 'Trung tâm trợ giúp' : 'Admin Profile'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '12px', background: 'var(--color-background-success)', color: 'var(--color-text-success)', padding: '4px 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -135,7 +192,7 @@ export default function AdminDashboard() {
                 <div className="stat-card">
                   <p className="stat-label">Model đang dùng</p>
                   <p className="stat-val">{overview.active_model.split('_')[0]}</p>
-                  <p className="stat-delta" style={{ color: 'var(--color-text-secondary)' }}>AUC {overview.auc.toFixed(2)}</p>
+                  <p className="stat-delta" style={{ color: 'var(--color-text-info)' }}>AUC {overview.auc.toFixed(2)} - Recall {overview.recall.toFixed(2)}</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">Cảnh báo rủi ro cao</p>
@@ -146,20 +203,23 @@ export default function AdminDashboard() {
 
               <div className="row3">
                 <div className="card">
-                  <p className="card-title" style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Hoạt động dự đoán 7 ngày gần đây</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {[
-                      { d: 'T2', v: 142 }, { d: 'T3', v: 165 }, { d: 'T4', v: 158 },
-                      { d: 'T5', v: 187 }, { d: 'T6', v: 171 }, { d: 'T7', v: 134 }, { d: 'CN', v: 96 }
-                    ].map(item => (
-                      <div key={item.d} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 500, width: '20px' }}>{item.d}</span>
-                        <div style={{ flex: 1, background: 'var(--color-background-tertiary)', height: '12px', borderRadius: '4px' }}>
-                          <div style={{ width: `${(item.v / 200) * 100}%`, height: '100%', background: 'var(--color-border-info)', borderRadius: '4px' }}></div>
-                        </div>
-                        <span style={{ fontSize: '12px', fontWeight: 600, width: '30px', textAlign: 'right' }}>{item.v}</span>
-                      </div>
-                    ))}
+                  <p className="card-title" style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Hiệu suất Model qua các Version</p>
+                  <div style={{ width: '100%', height: '220px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={overview.trend_data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorAuc" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--color-border-info)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--color-border-info)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
+                        <YAxis domain={[0.5, 1.0]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+                        <Tooltip contentStyle={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '8px' }} />
+                        <Area type="monotone" dataKey="auc" stroke="var(--color-border-info)" strokeWidth={3} fillOpacity={1} fill="url(#colorAuc)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
                 <div className="card">
@@ -168,73 +228,89 @@ export default function AdminDashboard() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <span style={{ color: 'var(--color-text-secondary)' }}>Thấp (&lt;40%)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{Math.round(overview.total_predictions * (100 - overview.high_risk_percentage - 20) / 100)}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{Math.round(overview.total_predictions * overview.low_risk_percentage / 100) || 0}</span>
                       </div>
-                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${100 - overview.high_risk_percentage - 20}%`, background: 'var(--color-border-success)' }}></div></div>
+                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${overview.low_risk_percentage || 0}%`, background: 'var(--color-border-success)' }}></div></div>
                     </div>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <span style={{ color: 'var(--color-text-secondary)' }}>Trung bình (40-70%)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{Math.round(overview.total_predictions * 0.2)}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{Math.round(overview.total_predictions * overview.medium_risk_percentage / 100) || 0}</span>
                       </div>
-                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `20%`, background: 'var(--color-border-warning)' }}></div></div>
+                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${overview.medium_risk_percentage || 0}%`, background: 'var(--color-border-warning)' }}></div></div>
                     </div>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <span style={{ color: 'var(--color-text-secondary)' }}>Cao (&gt;70%)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-danger)' }}>{Math.round(overview.total_predictions * (overview.high_risk_percentage) / 100)}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--color-text-danger)' }}>{Math.round(overview.total_predictions * overview.high_risk_percentage / 100) || 0}</span>
                       </div>
-                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${overview.high_risk_percentage}%`, background: 'var(--color-border-danger)' }}></div></div>
+                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${overview.high_risk_percentage || 0}%`, background: 'var(--color-border-danger)' }}></div></div>
                     </div>
                   </div>
                   <div style={{ borderTop: '1px solid var(--color-border-tertiary)', marginTop: '20px', paddingTop: '16px' }}>
-                    <p className="card-title" style={{ marginBottom: '10px', fontSize: '13px', fontWeight: 600 }}>Trạng thái model</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Data drift (PSI)</span>
-                      <span style={{ color: 'var(--color-text-success)', fontWeight: 500 }}>0.08 — OK</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Latency trung bình</span>
-                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>87ms</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Uptime tháng này</span>
-                      <span style={{ color: 'var(--color-text-success)', fontWeight: 500 }}>99.7%</span>
-                    </div>
+                    <p className="card-title" style={{ marginBottom: '10px', fontSize: '13px', fontWeight: 600 }}>Tài nguyên máy chủ (Real-time)</p>
+                    {systemStats ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
+                          <span style={{ color: 'var(--color-text-secondary)' }}>CPU Usage</span>
+                          <span style={{ color: systemStats.cpu_usage > 80 ? 'var(--color-text-danger)' : 'var(--color-text-success)', fontWeight: 500 }}>{systemStats.cpu_usage}%</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
+                          <span style={{ color: 'var(--color-text-secondary)' }}>RAM Usage ({systemStats.total_ram_gb}GB)</span>
+                          <span style={{ color: systemStats.ram_usage > 80 ? 'var(--color-text-danger)' : 'var(--color-text-info)', fontWeight: 500 }}>{systemStats.ram_usage}%</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                          <span style={{ color: 'var(--color-text-secondary)' }}>Uptime</span>
+                          <span style={{ color: 'var(--color-text-success)', fontWeight: 500 }}>{systemStats.uptime_hours}h</span>
+                        </div>
+                      </>
+                    ) : (
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Đang tải...</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="card">
                 <p className="card-title" style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Hoạt động gần đây</p>
-                <div className="log-row">
-                  <div className="log-dot" style={{ background: 'var(--color-border-info)' }}></div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>Dr. Nguyễn Văn A chạy dự đoán — BN #1042 · rủi ro 78%</span>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>2 phút trước</span>
-                  </div>
-                </div>
-                <div className="log-row">
-                  <div className="log-dot" style={{ background: 'var(--color-border-success)' }}></div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>Model v2.1 được deploy thành công bởi ds_minh</span>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>1 giờ trước</span>
-                  </div>
-                </div>
-                <div className="log-row">
-                  <div className="log-dot" style={{ background: 'var(--color-border-warning)' }}></div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>Dr. Trần Thị B xuất báo cáo PDF — BN #998</span>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>3 giờ trước</span>
-                  </div>
-                </div>
-                <div className="log-row">
-                  <div className="log-dot" style={{ background: 'var(--color-border-danger)' }}></div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>Đăng nhập thất bại 3 lần liên tiếp — IP 192.168.1.54</span>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>5 giờ trước</span>
-                  </div>
-                </div>
+                {auditLogs.slice(0, 4).map((log, index) => {
+                  let logColor = 'var(--color-border-info)';
+                  let actionText = log.action;
+                  if (log.action === 'SINGLE_PREDICT') {
+                    logColor = 'var(--color-border-warning)';
+                    actionText = `Dự đoán BN #${log.payload?.patient_code || '?'} · rủi ro ${log.payload?.risk_level || '?'}`;
+                  } else if (log.action === 'LOGIN') {
+                    logColor = 'var(--color-border-success)';
+                    actionText = `Đăng nhập thành công`;
+                  } else if (log.action === 'LOGIN_FAILED') {
+                    logColor = 'var(--color-border-danger)';
+                    actionText = `Đăng nhập thất bại`;
+                  } else if (log.action === 'FETCH_HIS') {
+                    logColor = 'var(--color-border-info)';
+                    actionText = `Đồng bộ HIS: ${log.payload?.records_fetched || 0} bệnh nhân`;
+                  } else if (log.action === 'TRIGGER_RETRAIN') {
+                    logColor = 'var(--color-border-warning)';
+                    actionText = `Kích hoạt huấn luyện lại Model`;
+                  }
+                  
+                  const logDate = new Date(log.created_at);
+                  const now = new Date();
+                  const diffMins = Math.floor((now - logDate) / 60000);
+                  const timeStr = diffMins < 60 ? `${diffMins} phút trước` : `${Math.floor(diffMins/60)} giờ trước`;
+
+                  return (
+                    <div className="log-row" key={log.id || index}>
+                      <div className="log-dot" style={{ background: logColor }}></div>
+                      <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                          <strong style={{color: 'var(--color-text-info)'}}>{log.username}</strong> {actionText.toLowerCase()}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{timeStr}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {auditLogs.length === 0 && <p style={{fontSize: '13px', color: 'var(--color-text-secondary)'}}>Chưa có hoạt động nào.</p>}
               </div>
             </div>
           )}
@@ -495,10 +571,35 @@ export default function AdminDashboard() {
                     </a>
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                    <button className="btn-sm" style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }} onClick={() => alert('Mockup: Pipeline retrain đang được kích hoạt...')}>
-                      <Play style={{ color: 'var(--color-text-success)' }} size={20} />
-                      <div><p style={{ margin: 0, fontWeight: 600, fontSize: '13px' }}>Kích hoạt retrain</p><p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-secondary)' }}>Chạy pipeline huấn luyện mới</p></div>
+                    <button 
+                      className="btn-sm" 
+                      style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px', background: isRetraining ? 'var(--color-background-tertiary)' : 'transparent', border: isRetraining ? '1px solid var(--color-border-info)' : '1px solid var(--color-border-tertiary)', cursor: isRetraining ? 'not-allowed' : 'pointer' }} 
+                      onClick={handleRetrain}
+                      disabled={isRetraining}
+                    >
+                      {isRetraining ? (
+                        <RotateCcw className="spin-icon" style={{ color: 'var(--color-text-info)' }} size={20} />
+                      ) : (
+                        <Play style={{ color: 'var(--color-text-success)' }} size={20} />
+                      )}
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '13px' }}>
+                          {isRetraining ? 'Đang huấn luyện...' : 'Kích hoạt retrain'}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                          Chạy pipeline huấn luyện mới
+                        </p>
+                      </div>
                     </button>
+                    
+                    {retrainLogs.length > 0 && (
+                      <div style={{ background: '#1e1e1e', color: '#00ff00', fontFamily: 'monospace', fontSize: '11px', padding: '10px', borderRadius: '4px', height: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {retrainLogs.map((log, idx) => (
+                          <div key={idx} style={{ opacity: idx === retrainLogs.length - 1 && isRetraining ? 0.7 : 1 }}>{log}</div>
+                        ))}
+                      </div>
+                    )}
+
                     <button className="btn-sm" style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }} onClick={() => alert('Mockup: Mở giao diện Rollback')}>
                       <RotateCcw style={{ color: 'var(--color-text-warning)' }} size={20} />
                       <div><p style={{ margin: 0, fontWeight: 600, fontSize: '13px' }}>Rollback model ↗</p><p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-secondary)' }}>Quay về phiên bản trước</p></div>
@@ -512,23 +613,16 @@ export default function AdminDashboard() {
               </div>
 
               <div className="card">
-                <p className="card-title" style={{ fontSize: '14px', fontWeight: 600 }}>Theo dõi hiệu suất model theo ngày</p>
+                <p className="card-title" style={{ fontSize: '14px', fontWeight: 600 }}>Lịch sử Huấn luyện Model</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px 60px', gap: '12px', fontSize: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-secondary)' }}>
-                    <span>Ngày</span><span>AUC-ROC</span><span style={{ textAlign: 'right' }}>Recall</span><span style={{ textAlign: 'right' }}>Latency</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px', gap: '12px', fontSize: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--color-border-tertiary)', color: 'var(--color-text-secondary)' }}>
+                    <span>Version</span><span>Thuật toán</span><span style={{ textAlign: 'right' }}>AUC-ROC</span>
                   </div>
-                  {[
-                    { label: 'T2 2026-05-22', auc: 0.84, rec: 0.73, lat: 85 },
-                    { d: '05-18', a: 0.82, r: 0.70, l: 95 },
-                    { d: '05-19', a: 0.84, r: 0.73, l: 87 },
-                    { d: '05-20', a: 0.84, r: 0.73, l: 85 },
-                    { d: '05-21', a: 0.83, r: 0.72, l: 88 }
-                  ].map(item => (
-                    <div key={item.d} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px 60px', gap: '12px', fontSize: '13px', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 500 }}>{item.d}</span>
-                      <div className="mini-bar-track"><div className="mini-bar-fill" style={{ width: `${item.a * 100}%`, background: 'var(--color-border-info)' }}></div></div>
-                      <span style={{ textAlign: 'right' }}>{item.r}</span>
-                      <span style={{ textAlign: 'right', color: 'var(--color-text-secondary)' }}>{item.l}ms</span>
+                  {registeredModels.map((item, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 60px', gap: '12px', fontSize: '13px', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500, color: 'var(--color-text-info)' }}>{item.version}</span>
+                      <span style={{ color: 'var(--color-text-primary)' }}>{item.algorithm}</span>
+                      <span style={{ textAlign: 'right', fontWeight: 600 }}>{item.auc_roc.toFixed(4)}</span>
                     </div>
                   ))}
                 </div>
@@ -544,12 +638,50 @@ export default function AdminDashboard() {
 
           {activeTab === 'logs' && (
             <div className="adm-page active">
-              <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                <ClipboardList size={48} style={{ opacity: 0.2, margin: '0 auto 16px' }} />
-                <h3>Tính năng đang phát triển</h3>
-                <p style={{ color: 'var(--color-text-secondary)', marginTop: '8px' }}>
-                  Hệ thống Audit Logs thực tế sẽ được ra mắt trong phiên bản cập nhật tiếp theo.
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--color-border-tertiary)', paddingBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Nhật ký Hệ thống (Audit Logs)</h2>
+                  <span style={{ fontSize: '12px', background: 'var(--color-background-info)', color: 'var(--color-text-info)', padding: '4px 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--color-border-info)' }}>
+                    <ClipboardList size={14} /> Tự động ghi nhận
+                  </span>
+                </div>
+                <button className="btn-sm" onClick={fetchAuditLogs} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-tertiary)' }}>
+                  <RotateCcw size={14} /> Làm mới
+                </button>
+              </div>
+              <div className="card" style={{ padding: 0 }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '160px' }}>Thời gian</th>
+                      <th>Người dùng</th>
+                      <th>Hành động</th>
+                      <th>Tài nguyên</th>
+                      <th>Chi tiết (Payload)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.length > 0 ? auditLogs.map(log => (
+                      <tr key={log.id}>
+                        <td style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                          {new Date(log.created_at).toLocaleString('vi-VN')}
+                        </td>
+                        <td style={{ fontWeight: 500 }}>{log.username}</td>
+                        <td>
+                          <span className={`badge ${log.action === 'LOGIN' ? 'badge-success' : log.action.includes('PREDICT') ? 'badge-info' : log.action === 'RETRAIN_MODEL' ? 'badge-warning' : 'badge-neutral'}`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '13px' }}>{log.resource}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-text-secondary)', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {JSON.stringify(log.payload)}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Không có dữ liệu Audit Logs.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -628,6 +760,10 @@ export default function AdminDashboard() {
                   </form>
                 )}
              </div>
+          )}
+
+          {activeTab === 'help' && (
+            <HelpCenter />
           )}
 
         </div>

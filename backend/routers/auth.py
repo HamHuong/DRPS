@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
 import bcrypt
+from audit import log_audit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,6 +24,8 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
         
     if not verify_password(user_credentials.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Credentials")
+        
+    log_audit(db, user_id=user.id, action="LOGIN", resource="System", payload={"role": user.role})
         
     return user
 

@@ -34,6 +34,16 @@ export const getAdminOverview = async () => {
     return response.data;
 };
 
+export const getSystemStats = async () => {
+    const response = await api.get('/stats/admin/system');
+    return response.data;
+};
+
+export const getAuditLogs = async () => {
+    const response = await api.get('/stats/admin/audit-logs');
+    return response.data;
+};
+
 export const getDoctors = async () => {
     const response = await api.get('/stats/doctors');
     return response.data;
@@ -52,6 +62,24 @@ export const updateProfile = async (userId, newUsername) => {
 
 export const getMLflowRegistry = async () => {
     const response = await api.get('/mlops/registry');
+    return response.data;
+};
+
+export const fetchHisData = async (userId) => {
+    const response = await api.post(`/predict/fetch-his?user_id=${userId}`);
+    return response.data;
+};
+
+export const batchProcess = async (patientCodes, userId) => {
+    const response = await api.post(`/predict/batch-process`, {
+        patient_codes: patientCodes,
+        user_id: userId
+    });
+    return response.data;
+};
+
+export const triggerRetrain = async () => {
+    const response = await api.post('/mlops/retrain');
     return response.data;
 };
 
