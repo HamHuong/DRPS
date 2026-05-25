@@ -1,8 +1,8 @@
-# DRPS - Diabetes Readmission Prediction System 🏥
+# DRPS - Diabetes Readmission Prediction System 
 
 Hệ thống AI hỗ trợ y tế dự đoán rủi ro tái nhập viện của bệnh nhân tiểu đường (DRPS). Dự án kết hợp Học máy (Machine Learning) tiên tiến, XAI (AI Giải thích được bằng SHAP) và kiến trúc Full-stack hiện đại để hỗ trợ các bác sĩ đưa ra quyết định lâm sàng.
 
-## 🚀 Công nghệ sử dụng (Tech Stack)
+## Công nghệ sử dụng (Tech Stack)
 
 *   **Machine Learning / AI:** XGBoost, Random Forest, Logistic Regression.
 *   **Explainable AI (XAI):** SHAP (SHapley Additive exPlanations).
@@ -13,7 +13,7 @@ Hệ thống AI hỗ trợ y tế dự đoán rủi ro tái nhập viện của 
 *   **Testing:** Pytest, HTTPX (Unit/Integration Test), Locust (Load Test).
 *   **Deployment / Orchestration:** Docker & Docker Compose.
 
-## 📂 Cấu trúc thư mục (Project Structure)
+## Cấu trúc thư mục (Project Structure)
 
 ```text
 Final_CNM/
@@ -60,7 +60,7 @@ Dự án được thiết kế để chạy mượt mà thông qua **Docker Comp
 docker-compose down
 ```
 
-## 🧪 Hướng dẫn chạy Bộ kiểm thử (Testing)
+##  Hướng dẫn chạy Bộ kiểm thử (Testing)
 
 Hệ thống đi kèm một bộ Test Suite hoàn chỉnh bao quát các khía cạnh Unit, Integration, và System testing.
 
@@ -79,6 +79,3 @@ locust -f locustfile.py
 ```
 Sau đó mở trình duyệt tại: `http://localhost:8089`. Điền số lượng người dùng đồng thời (ví dụ: 100) và tỷ lệ spawn, sau đó bấm *Start swarming* để quan sát biểu đồ chịu tải của hệ thống.
 
-## 👥 Tác giả
-*   Dự án môn học Chuyên Ngành Mạng (CNM) - Năm 4.
-*   Báo cáo chi tiết vui lòng tham khảo file `BaoCao_DRPS_2026.md` và `MauBaocao CNM 2026 (1).docx`.
